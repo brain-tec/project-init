@@ -1639,7 +1639,7 @@ function _show_start_title() {
   local has_addons_title=false;
   if [ -n "$PROJECT_INIT_ADDONS_DIR" ]; then
     if [ -r "${PROJECT_INIT_ADDONS_DIR}/title.txt" ]; then
-      _print_text_from_file "$PROJECT_INIT_ADDONS_DIR/title.txt";
+      _print_text_from_file "${PROJECT_INIT_ADDONS_DIR}/title.txt";
       has_addons_title=true;
     fi
   fi
@@ -2242,7 +2242,7 @@ function _replace_default_subst_vars() {
 }
 
 # Shows the start information to the user according to the set configuration.
-function project_init_show_start_info() {
+function _project_init_show_start_info() {
   get_boolean_property "sys.starticon.show" "true";
   if [[ "$PROPERTY_VALUE" == "true" ]]; then
     _show_start_icon;
@@ -3748,7 +3748,7 @@ function load_var() {
   for (( i=CURRENT_LVL_NUMBER; i>=0; --i )); do
     if [ -r "${init_lvl}/${arg_file}" ]; then
       # Read file content
-      var_content="$(cat ${init_lvl}/${arg_file})";
+      var_content="$(cat "${init_lvl}/${arg_file}")";
       break;
     fi
     init_lvl="$(dirname "$init_lvl")";
@@ -3830,10 +3830,10 @@ function load_var_from_file() {
   local init_lvl="$CURRENT_LVL_PATH";
   local i;
   for (( i=CURRENT_LVL_NUMBER; i>=0; --i )); do
-    if [ -r "{$init_lvl}/${arg_file}" ]; then
+    if [ -r "${init_lvl}/${arg_file}" ]; then
       found=true;
       # Read file content
-      var_value="$(cat ${init_lvl}/${arg_file})";
+      var_value="$(cat "${init_lvl}/${arg_file}")";
       break;
     fi
     init_lvl="$(dirname "$init_lvl")";
@@ -4143,7 +4143,7 @@ function project_init_license() {
     if [ -z "${all_file_ext[0]}" ]; then
       _make_func_hl "project_init_license";
       logW "No file extensions specified in the call" \
-          "to the $HYPERLINK_VALUE function.";
+           "to the $HYPERLINK_VALUE function.";
       logW "Copyright header variables in source files will not be replaced.";
       logW "Please specify in the call to the project_init_license() function all file";
       logW "extensions of project source files for which copyright headers exist";
@@ -4884,7 +4884,7 @@ function proceed_next_level() {
     fi
   fi
   # Set global vars to new values
-  CURRENT_LVL_PATH="${CURRENT_LVL_PATH}/$dir_next";
+  CURRENT_LVL_PATH="${CURRENT_LVL_PATH}/${dir_next}";
   CURRENT_LVL_NUMBER=$((CURRENT_LVL_NUMBER + 1));
   declare SCRIPT_LVL_${CURRENT_LVL_NUMBER}_BASE="$CURRENT_LVL_PATH";
 
