@@ -141,18 +141,18 @@
 # be shown to the user. This has to be provided separately. However, as part
 # of the API contract, any consuming component must ensure that the library
 # lifecycle functions are called in the appropriate order. That is:
-#   * start_project_init()
-#   * finish_project_init()
+#   * project_init_start()
+#   * project_init_finish()
 #
 # In between these function calls, a consuming component may use any
 # provided API function to implement a concrete project initialization form
 # and descend into more init levels.
 #
-# When the arguments given to the start_project_init() lifecycle function
+# When the arguments given to the project_init_start() lifecycle function
 # result in the activation of the Quickstart mode,
 # the PROJECT_INIT_QUICKSTART_REQUESTED global variable is set to true and
 # the consuming component may proceed by calling the
-# process_project_init_quickstart() function to load and execute
+# project_init_process_quickstart() function to load and execute
 # the requested Quickstart function.
 #
 # The developer documentation is available under on GitHub:
@@ -1033,6 +1033,40 @@ function _load_version_addons() {
     PROJECT_INIT_ADDONS_IS_DEV_VERSION=false;
   fi
   return $ret_val;
+}
+
+# Loads the specified addon library script file.
+#
+# The specified script path must be valid and the file
+# to be loaded must exist. If any condition is not satisfied, then
+# this function will exit the program by means of the failure() function.
+#
+# Args:
+# $1 - The name of the file to load, relative to the source tree root
+#      of the active addon. This is a mandatory argument.
+#
+function _load_addon_declared_libs() {
+  local addon_libs="$1";
+  if _is_absolute_path "$addon_libs"; then
+    logE "Addon code path is invalid.";
+    logE "Invalid property with key 'sys.addon.code.load': '${addon_libs}'";
+    logE "File path must be relative to addon directory.";
+    _show_helptext "E" "Addons#loading-common-code";
+    failure "An addon configuration has errors";
+  fi
+  if [[ "${addon_libs}" == *"../"* ]]; then
+    logE "Addon code path is invalid.";
+    failure "An addon configuration has errors";
+  fi
+  addon_libs="${PROJECT_INIT_ADDONS_DIR}/${addon_libs}";
+  if ! [ -r "${addon_libs}" ]; then
+    logE "Addon code file not found:";
+    logE "at: '${addon_libs}'";
+    logE "Invalid property with key 'sys.addon.code.load'";
+    _show_helptext "E" "Addons#loading-common-code";
+    failure "An addon configuration has errors";
+  fi
+  source "$addon_libs";
 }
 
 # Loads the quickstart function definitions.
@@ -2019,13 +2053,13 @@ function get_boolean_property() {
 function _run_addon_load_hook() {
   if [ -n "$PROJECT_INIT_ADDONS_DIR" ]; then
     # Ignore load-hook if script does not exist
-    if [ -f "$PROJECT_INIT_ADDONS_DIR/load-hook.sh" ]; then
+    if [ -f "${PROJECT_INIT_ADDONS_DIR}/load-hook.sh" ]; then
       # Check if hook is executable
-      if [ -x "$PROJECT_INIT_ADDONS_DIR/load-hook.sh" ]; then
+      if [ -x "${PROJECT_INIT_ADDONS_DIR}/load-hook.sh" ]; then
         # Run hook script, in a subshell-process,
         # redirect stdout and stderr to /dev/null
         (cd "$PROJECT_INIT_ADDONS_DIR" \
-            && exec "$PROJECT_INIT_ADDONS_DIR/load-hook.sh" > /dev/null 2>&1);
+            && exec "${PROJECT_INIT_ADDONS_DIR}/load-hook.sh" > /dev/null 2>&1);
 
         local hook_exit_status=$?;
         if (( hook_exit_status != 0 )); then
@@ -2034,7 +2068,7 @@ function _run_addon_load_hook() {
         fi
       else
         logW "The addons load hook is not marked as executable.";
-        logW "Please set as executable: '$PROJECT_INIT_ADDONS_DIR/load-hook.sh'";
+        logW "Please set as executable: '${PROJECT_INIT_ADDONS_DIR}/load-hook.sh'";
         _show_helptext "W" "Addons#hooks";
         warning "The load-hook of the Project Init script was not executed";
       fi
@@ -2051,9 +2085,9 @@ function _run_addon_load_hook() {
 function _run_addon_after_init_hook() {
   if [ -n "$PROJECT_INIT_ADDONS_DIR" ]; then
     # Ignore hook if script does not exist
-    if [ -f "$PROJECT_INIT_ADDONS_DIR/after-init-hook.sh" ]; then
+    if [ -f "${PROJECT_INIT_ADDONS_DIR}/after-init-hook.sh" ]; then
       # Check if hook is executable
-      if [ -x "$PROJECT_INIT_ADDONS_DIR/after-init-hook.sh" ]; then
+      if [ -x "${PROJECT_INIT_ADDONS_DIR}/after-init-hook.sh" ]; then
         logI "Running after-init hook";
         local exported_project_dir="$var_project_dir";
         if [[ $PROJECT_INIT_QUICKSTART_REQUESTED == true ]]; then
@@ -2061,10 +2095,11 @@ function _run_addon_after_init_hook() {
         fi
         # Run hook script, in a subshell-process, define env var,
         # redirect stdout and stderr to /dev/null
+        # shellcheck disable=SC2030
         (cd "$PROJECT_INIT_ADDONS_DIR" \
             && export VAR_PROJECT_DIR="$exported_project_dir" \
             && export PROJECT_INIT_QUICKSTART_REQUESTED; \
-            exec "$PROJECT_INIT_ADDONS_DIR/after-init-hook.sh" > /dev/null 2>&1);
+            exec "${PROJECT_INIT_ADDONS_DIR}/after-init-hook.sh" > /dev/null 2>&1);
 
         local hook_exit_status=$?;
         if (( hook_exit_status != 0 )); then
@@ -2074,12 +2109,83 @@ function _run_addon_after_init_hook() {
       else
         logW "The addons after-init hook is not marked as executable.";
         logW "Please set as executable:" \
-             "'$PROJECT_INIT_ADDONS_DIR/after-init-hook.sh'";
+             "'${PROJECT_INIT_ADDONS_DIR}/after-init-hook.sh'";
         _show_helptext "W" "Addons#hooks";
 
         warning "The after-init-hook of the Project Init script was not executed";
       fi
     fi
+  fi
+}
+
+# Runs the used-defined after-init-hook if available.
+#
+# This function can be safely called even when no used-defined
+# hook is available. The hook is executed in a subprocess, for which both
+# stdout and stderr are redirected to /dev/null
+#
+function _run_user_after_init_hook() {
+  get_property "sys.user.hook.afterinit";
+  local user_hook="$PROPERTY_VALUE";
+  if [ -z "$user_hook" ]; then
+    return 0;
+  fi
+  if _is_absolute_path "$user_hook"; then
+    logW "User-defined after-init hook is invalid.";
+    logW "File path must be relative to user home directory.";
+    logW "Invalid property with key 'sys.user.hook.afterinit': '${user_hook}'";
+    _show_helptext "W" "Addons#hooks";
+    warning "The user-defined after-init hook was not executed";
+    return 1;
+  fi
+  if [ -z "$HOME" ]; then
+    logE "Cannot find user home";
+    return 1;
+  fi
+  if [[ "${user_hook}" == *"../"* ]]; then
+    logW "Invalid user-defined after-init hook.";
+    warning "The user-defined after-init hook was not executed";
+    return 1;
+  fi
+  user_hook="${HOME}/${user_hook}";
+  if ! [ -r "${user_hook}" ]; then
+    logW "User-defined after-init hook not found:";
+    logW "at: '${user_hook}'";
+    _show_helptext "W" "Addons#hooks";
+    warning "The user-defined after-init hook was not executed";
+    return 1;
+  fi
+  if ! [ -O "${user_hook}" ]; then
+    logW "User-defined after-init hook is not owned by current user:";
+    logW "at: '${user_hook}'";
+    _show_helptext "W" "Addons#hooks";
+    warning "The user-defined after-init hook was not executed";
+    return 1;
+  fi
+  if ! [ -x "${user_hook}" ]; then
+    logW "User-defined after-init hook is not marked as executable:";
+    logW "Please set as executable: '${user_hook}'";
+    _show_helptext "W" "Addons#hooks";
+    warning "The user-defined after-init hook was not executed";
+    return 1;
+  fi
+  logI "Running user-defined after-init hook";
+  local exported_project_dir="$var_project_dir";
+  if [[ $PROJECT_INIT_QUICKSTART_REQUESTED == true ]]; then
+    exported_project_dir="$USER_CWD";
+  fi
+  # Run hook script, in a subshell-process, define env var,
+  # redirect stdout and stderr to /dev/null
+  # shellcheck disable=SC2031
+  (cd "$HOME" \
+      && export VAR_PROJECT_DIR="$exported_project_dir" \
+      && export PROJECT_INIT_QUICKSTART_REQUESTED; \
+      exec "${user_hook}" > /dev/null 2>&1);
+
+  local hook_exit_status=$?;
+  if (( hook_exit_status != 0 )); then
+    logW "User-defined after-init hook finished with exit status $hook_exit_status";
+    warning "The user-defined after-init hook did not exit successfully";
   fi
 }
 
@@ -2118,6 +2224,30 @@ function _fill_files_list_from() {
   fi
 }
 
+# Handler function for when the addon-specific configuration file was loaded.
+#
+# This function can be used to perform checks for the addon-specific
+# 'project.properties' configuration file after the base variant was loaded
+# but before the user variant is loaded. It is only called if
+# the addon-specific file was loaded.
+#
+function _after_addons_properties_loaded() {
+  get_property "sys.addon.code.load";
+  local addon_libs="$PROPERTY_VALUE";
+  if [ -n "$addon_libs" ]; then
+    _load_addon_declared_libs "$addon_libs";
+  fi
+  get_property "sys.user.hook.afterinit";
+  local user_hook="$PROPERTY_VALUE";
+  if [ -n "$user_hook" ]; then
+    logW "Invalid property defined by addon.";
+    logW "The property with key 'sys.user.hook.afterinit' must only be ";
+    logW "defined by the user-specific 'project.properties' file.";
+    _show_helptext "W" "Addons#hooks";
+    PROPERTIES[sys.user.hook.afterinit]="";
+  fi
+}
+
 # Loads the base system configuration files and stores the
 # data in the corresponding global variables.
 #
@@ -2144,6 +2274,7 @@ function _load_configuration() {
   if [ -n "$PROJECT_INIT_ADDONS_DIR" ]; then
     if [ -f "$PROJECT_INIT_ADDONS_DIR/project.properties" ]; then
       _read_properties "$PROJECT_INIT_ADDONS_DIR/project.properties";
+      _after_addons_properties_loaded;
     fi
   fi
 
@@ -2257,8 +2388,50 @@ function _project_init_show_start_info() {
   fi
 }
 
+# [API function]
 # Startup function for the Project Init system.
-function start_project_init() {
+#
+# Initializes the state of the Project Init system, processes the given
+# arguments, loads configurations and potentially addons resources. This function
+# either brings the system to a state in which a regular form-based init process
+# or Quickstart function can be run, or it exits the process by means of
+# the failure() function. The general contract of the Project Init lifecycle
+# applies. When this function returns normally, the startup procedure has
+# succeeded and the caller can proceed with the desired action. The global
+# variable $PROJECT_INIT_QUICKSTART_REQUESTED will indicate whether the init
+# system is running in Quickstart mode or regular form-based mode, however, the
+# caller is in principle free to ignore the request as he sees fit. The provided
+# implementation for processing Quickstart requests can be launched by
+# calling the project_init_process_quickstart() function. When running in regular
+# form-based mode, it is the responsibility of the caller to provide a suitable
+# implementation of the main form and launch it after this function returns.
+# Once the Project Init system is initialized, a caller must ensure he calls
+# the project_init_finish() function as the shutdown procedure. Anything which
+# needs to be handled in between the startup and shutdown procedure
+# is implementation-specific.
+#
+# **WARNING:**
+#
+# This API function should **NOT** be called by an addon.
+# An addon is part of an already initialized lifecycle. This API function is
+# only intended to be used for providers of specialised Project Init
+# implementations, e.g. providers with a specialised main form implementation.
+# Normal users and organisations wishing to adapt and extend the default
+# Project Init implementation should do so by using the addon mechanism.
+# Normally, there is no need for an external consumer of Project Init to
+# provide his own lifecycle or main form implementation.
+# Only use this function if you know what you are doing.
+#
+# Args:
+# $@ - The arguments to Project Init.
+#
+# Globals:
+# PROJECT_INIT_QUICKSTART_REQUESTED - A boolean value indicating whether the
+#                                     given arguments resulted in a request to
+#                                     run a Quickstart function. Is either true
+#                                     or false. Is set by this function.
+#
+function project_init_start() {
   # Keep track of the current working directory of the user when he
   # executed the main script, even though we change it below to make
   # it easier throughout the Project Init system.
@@ -2317,10 +2490,34 @@ function start_project_init() {
 
   # Initialize some common substitution variables
   _load_default_subst_vars;
+  return 0;
 }
 
+# [API function]
 # Finish function for the Project Init system.
-function finish_project_init() {
+#
+# Performs lifecycle checks, shows warnings and success messages and handles
+# the shutdown state of the Project Init system. This function does not exit
+# the underlying process in the case of a successful operation, in which case
+# it returns with $EXIT_SUCCESS. However, in the case of an encountered error,
+# this function might exit the process by means of the failure() function.
+#
+# **WARNING:**
+#
+# This API function should **NOT** be called by an addon.
+# An addon is part of an already initialized lifecycle. This API function is
+# only intended to be used for providers of specialised Project Init
+# implementations, e.g. providers with a specialised main form implementation.
+# Normal users and organisations wishing to adapt and extend the default
+# Project Init implementation should do so by using the addon mechanism.
+# Normally, there is no need for an external consumer of Project Init to
+# provide his own lifecycle or main form implementation.
+# Only use this function if you know what you are doing.
+#
+# Returns:
+# 0 - In the case of a successful finish procedure.
+#
+function project_init_finish() {
   if [[ $PROJECT_INIT_QUICKSTART_REQUESTED == false ]]; then
     # Check that all API functions have been called
     if [[ ${_FLAG_PROJECT_FILES_COPIED} == false ]]; then
@@ -2367,8 +2564,9 @@ function finish_project_init() {
     fi
   fi
 
-  # Check for addons after-init hook
+  # Check for addons and used-defined after-init hooks.
   _run_addon_after_init_hook;
+  _run_user_after_init_hook;
 
   if [[ $PROJECT_INIT_QUICKSTART_REQUESTED == false ]]; then
     # Finish
@@ -2383,8 +2581,29 @@ function finish_project_init() {
   return $EXIT_SUCCESS;
 }
 
+# [API function]
 # Primary processing function for the quickstart mode.
-function process_project_init_quickstart() {
+#
+# This function handles the execution of one or more requested
+# Quickstart functions. This is the default implementation for
+# handling Quickstarts. In the case of an encountered error,
+# this function might exit the process by means of
+# the failure() function. All return values from called Quickstart
+# functions are handled by this function.
+#
+# # **WARNING:**
+#
+# This API function should **NOT** be called by an addon.
+# An addon is part of an already initialized lifecycle. This API function is
+# only intended to be used for providers of specialised Project Init
+# implementations, e.g. providers with a specialised main form implementation.
+# Normal users and organisations wishing to adapt and extend the default
+# Project Init implementation should do so by using the addon mechanism.
+# Normally, there is no need for an external consumer of Project Init to
+# provide his own lifecycle or main form implementation.
+# Only use this function if you know what you are doing.
+#
+function project_init_process_quickstart() {
   _load_version_base;
 
   if (( ${#ARG_QUICKSTART_NAMES[@]} == 0 )); then
@@ -4539,6 +4758,154 @@ function remove_lang_version() {
 function clear_lang_versions() {
   SUPPORTED_LANG_VERSIONS_IDS=();
   SUPPORTED_LANG_VERSIONS_LABELS=();
+}
+
+# [API function]
+# Expands one or more namespace template directories to have the specified
+# directory layout.
+#
+# In many project source tree structures the concept of a namespace where various
+# source code is placed in is represented by a directory layout that resembles
+# that namespace. One namespace level/component is represented by a separate
+# subdirectory within the source tree. This function can be used to automatically
+# expand a placeholder directory in a project source template structure to match
+# a given namespace layout. All files and subdirectories located within the
+# template's namespace placeholder directory are moved to the expanded
+# subdirectory of the lowermost namespace component.
+#
+# The underlying target project directory must already be created before calling
+# this function. At least two arguments must be specified. The first argument
+# denotes the namespace layout to expand the target directories to. Namespace
+# components are separated by slashes ('/'). All subsequent arguments denote the
+# directories in the project template source tree that should be expanded to
+# represent the given namespace. Multiple such directories can be specified in one
+# function call at once for improved efficiency, but at least one must be specified.
+# Each specified directory path must be relative to the root of the project source
+# template directory. Arguments must never denote absolute paths.
+#
+# The file cache holding the data about all present files in the project directory
+# to be initialized is automatically updated by this function.
+# This function may not be used in Quickstart mode.
+#
+# Since:
+# 1.5.0
+#
+# Args:
+# $1 - The namespace to use when expanding the specified template directories.
+#      Individual namespace levels are separated by '/' characters, however,
+#      a namespace must not start or end with a slash.
+#      This is a mandatory argument.
+# $@ - The namespace template directories to expand, relative to the project
+#      template source root directory. This is a mandatory argument. At least
+#      one directory must be provided by the caller. Any namespace template
+#      directory which does not exist in the template source is silently ignored.
+#
+# Examples:
+# # The following example expands 'ns_template_dir' in the source tree
+# # (as a subdirectory of 'src/main') to represent
+# # the 'raven/sample/stuff' namespace.
+# 
+# expand_namespace_directories "raven/sample/stuff" "src/main/ns_template_dir";
+#
+# # Now the project template directory structure is:
+# # 'src/main/raven/sample/stuff'
+#
+function expand_namespace_directories() {
+  local arg_namespace="$1";
+  shift;
+  local arg_project_paths=("$@");
+
+  if [[ ${_FLAG_PROJECT_FILES_COPIED} == false ]]; then
+  _make_func_hl "expand_namespace_directories";
+  local _hl_this="$HYPERLINK_VALUE";
+  _make_func_hl "project_init_copy";
+  local _hl_pic="$HYPERLINK_VALUE";
+  logE "Programming error in init script:";
+  logE "at: '${BASH_SOURCE[1]}' (line ${BASH_LINENO[0]})";
+  failure "Missing call to project_init_copy() function:"                       \
+          "When calling the ${_hl_this} function, the target project directory" \
+          "must already be created. "                                           \
+          "Make sure you first call the ${_hl_pic} function in your init script";
+  fi
+
+  if [ -z "$arg_namespace" ]; then
+    _make_func_hl "expand_namespace_directories";
+    logE "Programming error: Illegal function call:";
+    logE "at: '${BASH_SOURCE[1]}' (line ${BASH_LINENO[0]})";
+    failure "Programming error: Invalid call to ${HYPERLINK_VALUE} function: " \
+            "No namespace argument specified";
+  fi
+  if _is_absolute_path "$arg_namespace"; then
+    _make_func_hl "expand_namespace_directories";
+    logE "Programming error: Illegal function call:";
+    logE "at: '${BASH_SOURCE[1]}' (line ${BASH_LINENO[0]})";
+    failure "Programming error: Invalid call to ${HYPERLINK_VALUE} function: " \
+            "Namespace argument must not start with '/'";
+  fi
+  if (( ${#arg_project_paths[@]} == 0 )); then
+    _make_func_hl "expand_namespace_directories";
+    logE "Programming error: Illegal function call:";
+    logE "at: '${BASH_SOURCE[1]}' (line ${BASH_LINENO[0]})";
+    failure "Programming error: Invalid call to ${HYPERLINK_VALUE} function: " \
+            "No project directory paths specified";
+  fi
+
+  local path_source="";
+  local path_source_parent="";
+  local path_target="";
+  local project_path="";
+  local f="";
+  for project_path in "${arg_project_paths[@]}"; do
+    if _is_absolute_path "$project_path"; then
+      logW "Omitting expansion of invalid namespace template directory.";
+      logW "Path must not be absolute: '${project_path}'";
+      continue;
+    fi
+    path_source="${var_project_dir}/${project_path}";
+    if ! [ -d "$path_source" ]; then
+      continue;
+    fi
+
+    path_source_parent="$(dirname "$path_source")";
+    path_target="${path_source_parent}/${arg_namespace}";
+
+    # The beginning (i.e. the name of the first directory) of the target
+    # namespace layout path must not be the same as the namespace template
+    # directory, otherwise we would overwrite the same directory
+    if [[ "${path_source##*/}" == "${arg_namespace%%/*}" ]]; then
+      logW "Cannot expand namespace template directory:";
+      logW "at: '${path_source}'";
+      logW "The specified namespace '${arg_namespace}' begins with the end of this path.";
+      continue;
+    fi
+
+    # Create the target namespace directory layout
+    if ! mkdir -p "$path_target"; then
+      logE "Failed to create namespace target directory structure:";
+      logE "at: '${path_target}'";
+      failure "Failed to create target namespace";
+    fi
+
+    # Move all files and subdirectories that are direct children of the
+    # namespace template source to the created real namespace directory
+    for f in "$path_source"/*; do
+      if ! mv "$f" "$path_target"; then
+        logE "Failed to move file to namespace layout target directory:";
+        logE "Source: '${f}'";
+        logE "Target: '${path_target}'";
+        failure "Failed to move source files to target namespace";
+      fi
+    done
+    # Remove the original now empty placeholder namespace dir
+    if ! rm -r "$path_source"; then
+      logE "Failed to remove template source namespace placeholder directory:";
+      logE "at: '${path_source}'";
+      failure "Failed to expand namespace directory";
+    fi
+  done
+  # Update file cache
+  find_all_files;
+  return 0;
 }
 
 # [API function]
