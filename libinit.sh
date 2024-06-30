@@ -3776,16 +3776,16 @@ function copy_resource() {
     # In regular form-based mode #
     #----------------------------#
     if [[ ${_FLAG_PROJECT_FILES_COPIED} == false ]]; then
-    _make_func_hl "copy_resource";
-    local _hl_copy_res="$HYPERLINK_VALUE";
-    _make_func_hl "project_init_copy";
-    local _hl_pic="$HYPERLINK_VALUE";
-    logE "Programming error in init script:";
-    logE "at: '${BASH_SOURCE[1]}' (line ${BASH_LINENO[0]})";
-    failure "Missing call to project_init_copy() function:"                           \
-            "When calling the ${_hl_copy_res} function, the target project directory" \
-            "must already be created. "                                               \
-            "Make sure you first call the ${_hl_pic} function in your init script";
+      _make_func_hl "copy_resource";
+      local _hl_copy_res="$HYPERLINK_VALUE";
+      _make_func_hl "project_init_copy";
+      local _hl_pic="$HYPERLINK_VALUE";
+      logE "Programming error in init script:";
+      logE "at: '${BASH_SOURCE[1]}' (line ${BASH_LINENO[0]})";
+      failure "Missing call to project_init_copy() function:"                           \
+              "When calling the ${_hl_copy_res} function, the target project directory" \
+              "must already be created. "                                               \
+              "Make sure you first call the ${_hl_pic} function in your init script";
     fi
     if ! _is_absolute_path "$arg_src"; then
       arg_src="${PROJECT_INIT_USED_SOURCE}/${arg_src}";
@@ -4626,25 +4626,19 @@ function project_init_license() {
         PROJECT_INIT_LICENSE_FILE_NAME="LICENSE";
       fi
       # Copy the main license file
-      if [ -r "${var_project_license_dir}/license.txt" ]; then
-        local license_src="${var_project_license_dir}/license.txt";
-        local license_trgt="${var_project_dir}/${PROJECT_INIT_LICENSE_FILE_NAME}";
-        if ! cp "$license_src" "$license_trgt"; then
-          logE "An error occurred while trying to copy the following file:";
+      local license_src="${var_project_license_dir}/license.txt";
+      if [ -r "$license_src" ]; then
+        if ! copy_resource "$license_src" "$PROJECT_INIT_LICENSE_FILE_NAME"; then
+          logE "An error occurred while trying to copy the license source file:";
           logE "Source: '${license_src}'";
-          logE "Target: '${license_trgt}'";
+          logE "Copy to target project as: '${PROJECT_INIT_LICENSE_FILE_NAME}'";
           failure "Failed to copy license file to project directory";
         fi
-
-        # The content of the target directory has changed.
-        # Update the list of relevant files
-        find_all_files;
       else
         logW "License file could not be created.";
         # shellcheck disable=SC2154
         logW "Failed to find license legal text file for '$var_project_license'.";
-        logW "Please add the legal text to the" \
-             "file '$var_project_license_dir/license.txt'.";
+        logW "Please add the legal text to the file '${license_src}'.";
         warning "The initialized project has a missing '${PROJECT_INIT_LICENSE_FILE_NAME}' file";
       fi
     fi
