@@ -276,12 +276,27 @@ CURRENT_LVL_NUMBER=0;
 USER_INPUT_ENTERED_TEXT="";
 
 # [API Global]
+# Used by the read_user_input_text() function to determine the text value to use
+# by default when a user does not provide an answer in the text prompt.
+# Since:
+# 1.7.0
+USER_INPUT_DEFAULT_TEXT="";
+
+# [API Global]
 # Contains the selection index of the user choice from
 # the last call to the read_user_input_selection() function.
 # Please note that this index is always zero-based, even when
 # the selection numbers shown to the user within the
 # form selections exhibit a different behaviour.
 USER_INPUT_ENTERED_INDEX="";
+
+# [API Global]
+# Used by the read_user_input_selection() function to determine the
+# zero-based index of the item to use by default when a user does not
+# provide an answer in the item selection prompt.
+# Since:
+# 1.7.0
+USER_INPUT_DEFAULT_INDEX="";
 
 # [API Global]
 # Contains the boolean user answer of the yes/no question
@@ -3335,12 +3350,14 @@ function _get_form_answer() {
 # an invalid input, such as an out of range selection number, this function
 # will let the user reenter his answer until he provides a valid input or
 # otherwise cancels the program.
-# When in test mode and an invalid answer is provided, then this function
-# exits the program by means of the failure() function.
 #
 # A special case for the selection item is the occurrence of the "None" string.
 # If the last specified item equals "None", then if the user chooses that item
 # the $USER_INPUT_ENTERED_INDEX variable will be set to an empty string.
+#
+# Since 1.7.0 a caller can use the $USER_INPUT_DEFAULT_INDEX variable
+# to specify a default item for the case in which the user does not enter
+# anything when prompted and simply hits enter.
 #
 # Args:
 # $@ - A series of selection items.
@@ -3349,16 +3366,23 @@ function _get_form_answer() {
 # A selection list is printed.
 #
 # Returns:
-# 0 - In the case of a valid item selection.
+# 0 - In the case of a valid item selection made by the user.
+# 1 - In the case of a default item selection due to the user
+#     having hit enter.
 #
 # Globals:
 # USER_INPUT_ENTERED_INDEX - Will be set by this function to contain
 #                            the zero-based index of the item selected
-#                            by the user.
+#                            by the user, or the default index if specified.
+# USER_INPUT_DEFAULT_INDEX - Can be set by the caller to contain the zero-based
+#                            index of the item which should be selected by
+#                            default if the user does not enter
+#                            anything when prompted.
 #
 # Examples:
 # my_list=("Item A" "Item B" "Item C");
 # logI "Choose an item out of the list:";
+# USER_INPUT_DEFAULT_INDEX=1; # Default to "Item B"
 # read_user_input_selection "${my_list[@]}";
 # index=$USER_INPUT_ENTERED_INDEX;
 # logI "Selected Item: ${my_list[index]}";
@@ -3413,19 +3437,30 @@ function read_user_input_selection() {
       read -e -r -p "${_READ_FN_INPUT_PROMPT}" selected_item;
     fi
 
+    local default_index_used=false;
+    local is_number="^[0-9]+$";
     # Check special case for "None" option
     if [ -z "$selected_item" ]; then
+      if [ -n "$USER_INPUT_DEFAULT_INDEX" ]; then
+        if [[ $USER_INPUT_DEFAULT_INDEX =~ $is_number ]]; then
+          selected_item=$((USER_INPUT_DEFAULT_INDEX+1));
+          default_index_used=true;
+        else
+          logE "Expected numeric value for variable USER_INPUT_DEFAULT_INDEX" \
+               "but found '${USER_INPUT_DEFAULT_INDEX}'";
+        fi
+      fi
       local last_item_index=$((length-1));
       local last_item="${selection_names[last_item_index]}";
       if [[ "$last_item" == "None" ]]; then
         USER_INPUT_ENTERED_INDEX="";
+        USER_INPUT_DEFAULT_INDEX=""; # Reset
         return 0;
       fi
     fi
 
     # Validate user input
-    local re="^[0-9]+$";
-    if ! [[ $selected_item =~ $re ]]; then
+    if ! [[ $selected_item =~ $is_number ]]; then
       # Input is not a number.
       # Check if it matches one of the selection items
       local is_valid=false;
@@ -3460,6 +3495,11 @@ function read_user_input_selection() {
 
   local index=$((selected_item-1));
   USER_INPUT_ENTERED_INDEX=$index;
+  USER_INPUT_DEFAULT_INDEX=""; # Reset
+
+  if [[ $default_index_used == true ]]; then
+    return 1;
+  fi
 
   get_boolean_property "sys.input.selection.numsubst" "true";
   if [[ "$PROPERTY_VALUE" == "true" ]]; then
@@ -3495,18 +3535,25 @@ function read_user_input_selection() {
 # function logs some information in the case of a detected invalid input such
 # that a user is informed about the cause of the invalidity.
 #
-# When in test mode and an invalid answer is provided, then this function
-# exits the program by means of the failure() function.
+# Since 1.7.0 a caller can use the $USER_INPUT_DEFAULT_TEXT variable
+# to specify a default value for the case in which the user does not enter
+# anything when prompted and simply hits enter. When the default value applies,
+# a validation function is not used and the $USER_INPUT_ENTERED_TEXT variable
+# is assigned the default value as is.
 #
 # Args:
 # $1 - The input validation function to use. This is an optional argument.
 #
 # Returns:
 # 0 - In the case of a valid text input.
+# 1 - In the case of a default text value due to non-provided input by the user.
 #
 # Globals:
-# USER_INPUT_ENTERED_TEXT  - Will be set by this function to contain the text
-#                            entered by the user.
+# USER_INPUT_ENTERED_TEXT - Will be set by this function to contain the text
+#                           entered by the user, or the default value if specified.
+# USER_INPUT_DEFAULT_TEXT - Can be set by the caller to contain the text value
+#                           which should be assigned by default if the user
+#                           does not enter anything when prompted.
 #
 # Examples:
 # function _my_validation_name() {
@@ -3519,6 +3566,7 @@ function read_user_input_selection() {
 # }
 # 
 # logI "What's your name?";
+# USER_INPUT_DEFAULT_TEXT="Hans";
 # read_user_input_text;
 # name="$USER_INPUT_ENTERED_TEXT";
 # logI "Hi ${name}! Nice to meet you.";
@@ -3532,7 +3580,8 @@ function read_user_input_text() {
   local _validation_function_arg=$1;
   local entered_text="";
   local entered_text="";
-  local valid_answer_given=false;
+  local user_input_default_text="$USER_INPUT_DEFAULT_TEXT";
+  USER_INPUT_DEFAULT_TEXT=""; # Reset
   local retry_prompt=true;
 
   while [[ $retry_prompt == true ]]; do
@@ -3544,13 +3593,16 @@ function read_user_input_text() {
     else
       read -e -r -p "${_READ_FN_INPUT_PROMPT}" entered_text;
     fi
+    if [ -z "$entered_text" ] && [ -n "$user_input_default_text" ]; then
+      USER_INPUT_ENTERED_TEXT="$user_input_default_text";
+      return 1;
+    fi
     if [ -n "${_validation_function_arg}" ]; then
       if [[ $(type -t ${_validation_function_arg}) == function ]]; then
         # Call given input validation function
         ${_validation_function_arg} "$entered_text";
         if (( $? == 0 )); then
           retry_prompt=false;
-          valid_answer_given=true;
         elif [[ "$PROJECT_INIT_TESTS_ACTIVE" == "1" ]]; then
           # For invalid input in test mode: terminate to avoid further
           # execution of the program with potentially unsafe values.
@@ -3584,8 +3636,7 @@ function read_user_input_text() {
 # entered text represents or can be converted to a valid boolean.
 # If the entered input is invalid, then this function will let the user
 # reenter his answer until he provides a valid input or otherwise cancels
-# the program. When in test mode and an invalid answer is provided, then
-# this function exits the program by means of the failure() function.
+# the program.
 #
 # Supported text values for the boolean value of true:
 # "true", "yes", "y", "1"
