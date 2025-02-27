@@ -5591,6 +5591,9 @@ function proceed_next_level() {
 # a Quickstart function, otherwise the entire Quickstart operation is cancelled
 # by this function. The file is created if it does not already exists.
 #
+# Since:
+# 1.8.0
+#
 # Args:
 # $1 - The relative path of the source file to write to in the project
 #      target directory. The path must not be absolute. This is a mandatory argument
@@ -5616,7 +5619,7 @@ function write_file() {
   fi
   if _is_absolute_path "$arg_file_path"; then
     _make_func_hl "write_file";
-    logE "Programming error: Illegal argument '${arg_target}'";
+    logE "Programming error: Illegal argument '${arg_file_path}'";
     logE "at: '${BASH_SOURCE[1]}' (line ${BASH_LINENO[0]})";
     failure "Programming error: Invalid call to ${HYPERLINK_VALUE} function: " \
             "The file argument must not be absolute";
@@ -5654,8 +5657,7 @@ function write_file() {
     fi
     file_path="${var_project_dir}/${arg_file_path}";
   fi
-  echo -ne "$arg_file_data" > "$file_path";
-  if (( $? != 0 )); then
+  if ! echo -ne "$arg_file_data" > "$file_path"; then
     logW "Could not write to file '${file_path}'";
     return 1;
   fi
