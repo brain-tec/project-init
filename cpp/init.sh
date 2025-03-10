@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (C) 2024 Raven Computing
+# Copyright (C) 2025 Raven Computing
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -101,14 +101,11 @@ function form_cpp_binary_name() {
   logI "";
   logI "Enter the name of the binary file that this project produces:";
   # shellcheck disable=SC2154
-  logI "(Defaults to '$var_project_name_lower')";
+  USER_INPUT_DEFAULT_TEXT="$var_project_name_lower";
+  logI "(Defaults to '${USER_INPUT_DEFAULT_TEXT}')";
   read_user_input_text;
-  local entered_binary_name="$USER_INPUT_ENTERED_TEXT";
-  if [ -z "$entered_binary_name" ]; then
-    entered_binary_name="$var_project_name_lower";
-  fi
-  var_artifact_binary_name="$entered_binary_name";
-  var_artifact_binary_name_upper=$(echo "$entered_binary_name" \
+  var_artifact_binary_name="$USER_INPUT_ENTERED_TEXT";
+  var_artifact_binary_name_upper=$(echo "$var_artifact_binary_name" \
                                     |tr '[:lower:]' '[:upper:]');
 }
 
@@ -191,21 +188,16 @@ function form_cpp_namespace() {
   local cpp_namespace_default="$PROPERTY_VALUE";
 
   FORM_QUESTION_ID="cpp.namespace";
+  USER_INPUT_DEFAULT_TEXT="$cpp_namespace_default";
   logI "";
   logI "Enter the namespace for the project source code in dot notation.";
   logI "For example: '$cpp_namespace_example'";
   logI "(Defaults to '$cpp_namespace_default')";
 
   read_user_input_text _validate_cpp_namespace;
-  local _namespace_name="$USER_INPUT_ENTERED_TEXT";
-
-  # Validate given namespace string
-  if [ -z "${_namespace_name}" ]; then
-    _namespace_name="$cpp_namespace_default";
-  fi
 
   # Set global vars
-  var_namespace="${_namespace_name}";
+  var_namespace="$USER_INPUT_ENTERED_TEXT";
   if [[ $var_namespace == *"."* ]]; then
     var_namespace_0="${var_namespace%%.*}";
   else
@@ -237,6 +229,7 @@ function form_cpp_namespace() {
 add_lang_version "14" "C++14";
 add_lang_version "17" "C++17";
 add_lang_version "20" "C++20";
+add_lang_version "23" "C++23";
 
 # Let the user choose a C++ project type
 select_project_type "cpp" "C++";

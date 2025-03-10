@@ -82,14 +82,11 @@ function form_c_binary_name() {
   logI "";
   logI "Enter the name of the binary file that this project produces:";
   # shellcheck disable=SC2154
-  logI "(Defaults to '$var_project_name_lower')";
+  USER_INPUT_DEFAULT_TEXT="$var_project_name_lower";
+  logI "(Defaults to '${USER_INPUT_DEFAULT_TEXT}')";
   read_user_input_text;
-  local entered_binary_name="$USER_INPUT_ENTERED_TEXT";
-  if [ -z "$entered_binary_name" ]; then
-    entered_binary_name="$var_project_name_lower";
-  fi
-  var_artifact_binary_name="$entered_binary_name";
-  var_artifact_binary_name_upper=$(echo "$entered_binary_name" \
+  var_artifact_binary_name="$USER_INPUT_ENTERED_TEXT";
+  var_artifact_binary_name_upper=$(echo "$var_artifact_binary_name" \
                                     |tr '[:lower:]' '[:upper:]');
 }
 
@@ -97,6 +94,7 @@ function form_c_binary_name() {
 add_lang_version "90" "C89/90 (ANSI C)"; # CMake expects the identifier as '90'
 add_lang_version "99" "C99";
 add_lang_version "11" "C11";
+add_lang_version "17" "C17";
 add_lang_version "23" "C23";
 
 # Let the user choose a C project type
