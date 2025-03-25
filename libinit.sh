@@ -5576,9 +5576,9 @@ function proceed_next_level() {
 # [API function]
 # Appends text to a file within the project target directory.
 #
-# The file to append to is specified by the first argument. The file path argument
-# is interpreted as relative to the project target directory. The content to append
-# is specified by the second argument.
+# The file to append to is specified by the first argument. The path is interpreted as
+# relative to the project target directory. The content to append is specified by the
+# second argument.
 #
 # When in regular (form-based) application mode, the project target directory must have
 # already been created by means of the project_init_copy() function before a file
@@ -5657,9 +5657,16 @@ function append_file() {
     fi
     file_path="${var_project_dir}/${arg_file_path}";
   fi
+  local add_file_to_cache=false;
+  if ! [ -e "$file_path" ]; then
+    add_file_to_cache=true;
+  fi
   if ! echo -ne "$arg_file_data" >> "$file_path"; then
     logW "Could not append to file '${file_path}'";
     return 1;
+  fi
+  if [[ $add_file_to_cache == true ]]; then
+    CACHE_ALL_FILES+=("$file_path");
   fi
   return 0;
 }
