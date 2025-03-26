@@ -5646,6 +5646,12 @@ function remove_file() {
               "Make sure you first call the ${_hl_pic} function in your init script";
     fi
     target_file="${var_project_dir}/${arg_target}";
+    if ! [ -e "$target_file" ]; then
+      logW "Cannot remove file '${arg_target}'";
+      logW "File or directory does not exist:";
+      logW "at: '${BASH_SOURCE[1]}' (line ${BASH_LINENO[0]})";
+      return 1;
+    fi
   fi
   local file_type="file";
   if [ -d "$target_file" ]; then
@@ -5663,6 +5669,14 @@ function remove_file() {
     _cancel_quickstart $EXIT_FAILURE;
     failure "Failed to remove source files";
   fi
-  find_all_files;
+  # Update file cache: Remove target file and possibly its dir children
+  local updated_files=();
+  local file="";
+  for file in "${CACHE_ALL_FILES[@]}"; do
+    if [[ "$file" != "$target_file" && "$file" != "${target_file}/"* ]]; then
+      updated_files+=("$file");
+    fi
+  done
+  CACHE_ALL_FILES=("${updated_files[@]}");
   return 0;
 }
