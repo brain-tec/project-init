@@ -169,6 +169,9 @@ function _validate_exec_script_name() {
 # Prompts the user to select the Python version to use for the project.
 #
 # In version 1.8.0 this was changed from free text input to a selection.
+# Since then the 'python.version.min.default' property can be used to set a
+# default value for the selection, which will be used if the user does not
+# enter a value.
 #
 # The provided answer can be queried in source template files via the
 # VAR_PYTHON_VERSION substitution variable.
@@ -179,7 +182,6 @@ function _validate_exec_script_name() {
 # var_python_version - The Python version string. Is set by this function.
 #
 function form_python_version() {
-  FORM_QUESTION_ID="python.version";
   logI "";
   logI "Select the minimum version of Python required by the project.";
   if get_property "python.version.min.default"; then
@@ -193,6 +195,7 @@ function form_python_version() {
       fi
     fi
   fi
+  FORM_QUESTION_ID="python.version";
   read_user_input_selection "${SUPPORTED_LANG_VERSIONS_LABELS[@]}";
   if (( $? == 1 )); then
     logI "";
