@@ -127,12 +127,11 @@ function process_files_lvl_2() {
   replace_var "NAMESPACE_DECL_END"      "$var_namespace_decl_end";
 
   # Create namespace directory layout and move source files
-  local dir_layout="";
-  dir_layout=$(echo "$var_namespace" |tr "." "/");
+  local dir_layout="${var_namespace//.//}";
 
-  expand_namespace_directories "$dir_layout" "src/main/include/namespace"      \
-                                              "src/main/${c_or_cpp}/namespace" \
-                                              "src/test/${c_or_cpp}/namespace";
+  expand_namespace_directories "$dir_layout" "src/main/include/namespace"     \
+                                             "src/main/${c_or_cpp}/namespace" \
+                                             "src/test/${c_or_cpp}/namespace";
 
   # Rename JNI-related files
   move_file "src/main/include/jni/namespace_StringComparator.h" \
