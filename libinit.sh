@@ -5315,6 +5315,9 @@ function expand_namespace_directories() {
   local arg_namespace="$1";
   shift;
   local arg_project_paths=("$@");
+  if ! _check_no_quickstart; then
+    return 1;
+  fi
   _ensure_project_files_copied;
   _require_arg "$arg_namespace" "No namespace argument specified";
   if _is_absolute_path "$arg_namespace"; then
@@ -5328,7 +5331,7 @@ function expand_namespace_directories() {
   local path_source_parent="";
   local path_target="";
   local project_path="";
-  local f="";
+  local file="";
   for project_path in "${arg_project_paths[@]}"; do
     if _is_absolute_path "$project_path"; then
       logW "Omitting expansion of invalid namespace template directory.";
@@ -5362,10 +5365,10 @@ function expand_namespace_directories() {
 
     # Move all files and subdirectories that are direct children of the
     # namespace template source to the created real namespace directory
-    for f in "$path_source"/*; do
-      if ! mv "$f" "$path_target"; then
+    for file in "$path_source"/*; do
+      if ! mv "$file" "$path_target"; then
         logE "Failed to move file to namespace layout target directory:";
-        logE "Source: '${f}'";
+        logE "Source: '${file}'";
         logE "Target: '${path_target}'";
         failure "Failed to move source files to target namespace";
       fi
