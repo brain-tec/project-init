@@ -2923,11 +2923,14 @@ function _find_files_impl() {
 #
 # This function should be called every time the files in the project target
 # directory are changed, i.e. files are added, moved, or deleted manually
-# without the usage of the copy_resource() or copy_shared() functions.
-# Changes of the file contents are irrelevant. Calling this function ensures
-# that the internally used file cache is up-to-date after the project
-# structure has changed. In Quickstart mode this function is not applicable
-# as files should only be copied by the respective API functions.
+# without the usage of the file processing functions, e.g. the move_file()
+# or copy_resource() function. Changes of the file contents are irrelevant.
+# Calling this function ensures that the internally used file cache is
+# up-to-date after the project structure has changed. The file processing API
+# functions handle this for the user so usually this function only has to be
+# called when init code changes the project files manually, e.g. by directly
+# using the mv or cp commands, etc. In Quickstart mode this function is not
+# applicable as files should only be copied by the respective API functions.
 #
 function find_all_files() {
   if ! _check_no_quickstart; then
@@ -2957,9 +2960,9 @@ function find_all_files() {
 # Project Init target directory indicated by the $var_project_dir variable.
 # The project template source directory must exist and not be empty.
 #
-# The file cache for the project target files, which is represented by
-# the $CACHE_ALL_FILES global variable, is populated with the paths to
-# the copied files in the target directory as a result of this operation.
+# As a result of this operation, file processing functions can be used after
+# the call to this function returns, with the relative path arguments to those
+# file processing functions usually being relative to the project target directory.
 #
 # The path to the project source template files can be optionally specified
 # as an argument to this function.
@@ -2974,8 +2977,6 @@ function find_all_files() {
 # var_project_dir  - The path to the project directory to which the files
 #                    will be copied (target).
 # var_project_name - The name of the project to initialize.
-# CACHE_ALL_FILES  - The variable in which the paths to all copied files
-#                    are saved.
 # CURRENT_LVL_PATH - The path to the current init level dir.
 #                    Used when no path arg is specified
 #
