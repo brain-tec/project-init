@@ -6281,6 +6281,7 @@ function remove_file() {
 # 1 - If the create operation has failed.
 #
 # Examples:
+# create_directory "data";
 # create_directory "src/main/my_new_dir";
 #
 function create_directory() {
@@ -6316,7 +6317,7 @@ function create_directory() {
     fi
   fi
   if ! mkdir -p "$file_path"; then
-    logW "Failed to create directory: '${arg_dir_path}'";
+    logE "Failed to create directory or one of its parents: '${arg_dir_path}'";
     return 1;
   fi
   if [[ $add_file_to_cache == true ]]; then
