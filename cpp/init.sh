@@ -152,7 +152,7 @@ function _validate_cpp_namespace() {
     return 0;
   fi
   # Check for expected pattern
-  local re="^[a-z.]*$";
+  local re="^[a-zA-Z.]*$";
   if ! [[ ${input} =~ $re ]]; then
     logI "Only lower-case a-z and '.' characters are allowed";
     return 1;
@@ -227,8 +227,8 @@ function form_cpp_namespace() {
   USER_INPUT_DEFAULT_TEXT="$cpp_namespace_default";
   logI "";
   logI "Enter the namespace for the project source code in dot notation.";
-  logI "For example: '$cpp_namespace_example'";
-  logI "(Defaults to '$cpp_namespace_default')";
+  logI "For example: '${cpp_namespace_example}'";
+  logI "(Defaults to '${cpp_namespace_default}')";
 
   read_user_input_text _validate_cpp_namespace;
 
