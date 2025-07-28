@@ -1771,9 +1771,16 @@ function _load_addons_resource_git() {
     fi
     local branch="";
     local git_branch="";
+    local re="^[0-9a-zA-Z/_.-]+$";
     if [ -n "$PROJECT_INIT_ADDONS_RES_BRANCH" ]; then
       branch="$PROJECT_INIT_ADDONS_RES_BRANCH";
       git_branch="-b $branch";
+      if ! [[ "$branch" =~ $re ]]; then
+        logE "Invalid branch name";
+        failure "Cannot fetch Project Init addons resources due to an invalid branch specified " \
+                "by the PROJECT_INIT_ADDONS_RES_BRANCH environment variable. The branch name "   \
+                "contains invalid characters.";
+      fi
     fi
     echo -n "Loading addons...";
     git clone $git_branch --depth 1 "$git_res" "${RES_CACHE_LOCATION}/${addons_res_dir}" &> /dev/null;
@@ -3127,13 +3134,13 @@ function project_init_copy() {
 
   # Set source directory if arg is not given
   if [ -z "$files_source" ]; then
-    files_source="$CURRENT_LVL_PATH/source";
+    files_source="${CURRENT_LVL_PATH}/source";
   fi
   # Check if source is directory
   if ! [ -d "$files_source" ]; then
     logE "Project source template directory does not exist" \
          "or is not a directory:";
-    logE "at: '$files_source'";
+    logE "at: '${files_source}'";
     failure "Project source template directory not found";
   fi
   # Check that the source directory is not empty
