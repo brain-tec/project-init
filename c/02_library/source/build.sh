@@ -10,14 +10,23 @@ ${USAGE}
 
 Options:
 
+  [--analyze]     Enable static source code analysis checks by the compiler.
+                  This can slow down compilation time significantly.
+
   [--clean]       Remove all build-related directories and files and then exit.
 
   [--config]      Only execute the build configuration step. This option will skip
                   the build step.
 
+  [--coverage]    Enable code coverage instrumentation. Should only be used with debug builds.
+
   [--debug]       Build the libraries with debug symbols and with
                   optimizations turned off.
 ${{VAR_SCRIPT_BUILD_DOCS_OPT}}
+
+  [--ignore-warnings]
+                  Ignore all compiler warnings during the build process. Warning messages
+                  may still be shown, but will not cause the build to fail.
 ${{VAR_SCRIPT_BUILD_ISOLATED_OPT}}
 
   [--sanitizers]  Use sanitizers when building and running.
@@ -35,12 +44,15 @@ EOS
 )
 
 # Arg flags
+ARG_ANALYZE=false;
 ARG_CLEAN=false;
 ARG_CONFIG=false;
+ARG_COVERAGE=false;
 ARG_SANITIZERS=false;
 ARG_SHARED=false;
 ARG_DEBUG=false;
 ${{VAR_SCRIPT_BUILD_DOCS_ARGFLAG}}
+ARG_IGNORE_WARNINGS=false;
 ${{VAR_SCRIPT_BUILD_ISOLATED_ARGFLAG}}
 ARG_SKIP_CONFIG=false;
 ARG_SKIP_TESTS=false;
@@ -51,12 +63,22 @@ ${{VAR_SCRIPT_BUILD_ISOLATED_ARGARRAY}}
 # Parse all arguments given to this script
 for arg in "$@"; do
   case $arg in
+    --analyze)
+    ARG_ANALYZE=true;
+${{VAR_SCRIPT_BUILD_ISOLATED_ARGARRAY_ADD}}
+    shift
+    ;;
     --clean)
     ARG_CLEAN=true;
     shift
     ;;
     --config)
     ARG_CONFIG=true;
+${{VAR_SCRIPT_BUILD_ISOLATED_ARGARRAY_ADD}}
+    shift
+    ;;
+    --coverage)
+    ARG_COVERAGE=true;
 ${{VAR_SCRIPT_BUILD_ISOLATED_ARGARRAY_ADD}}
     shift
     ;;
@@ -72,6 +94,11 @@ ${{VAR_SCRIPT_BUILD_ISOLATED_ARGARRAY_ADD}}
     ;;
     --debug)
     ARG_DEBUG=true;
+${{VAR_SCRIPT_BUILD_ISOLATED_ARGARRAY_ADD}}
+    shift
+    ;;
+    --ignore-warnings)
+    ARG_IGNORE_WARNINGS=true;
 ${{VAR_SCRIPT_BUILD_ISOLATED_ARGARRAY_ADD}}
     shift
     ;;
@@ -146,8 +173,17 @@ if [[ $ARG_DEBUG == true ]]; then
 fi
 
 BUILD_TESTS="ON";
+IGNORE_WARNINGS="OFF";
+BUILD_ANALYZE="OFF";
 BUILD_WITH_SANITIZERS="OFF";
+BUILD_WITH_COVERAGE="OFF";
 
+if [[ $ARG_IGNORE_WARNINGS == true ]]; then
+  IGNORE_WARNINGS="ON";
+fi
+if [[ $ARG_ANALYZE == true ]]; then
+  BUILD_ANALYZE="ON";
+fi
 if [[ $ARG_SKIP_TESTS == true ]]; then
   BUILD_TESTS="OFF";
 fi
@@ -160,13 +196,24 @@ BUILD_SHARED_LIBS="OFF";
 if [[ $ARG_SHARED == true ]]; then
   BUILD_SHARED_LIBS="ON";
 fi
+if [[ $ARG_COVERAGE == true ]]; then
+  BUILD_WITH_COVERAGE="ON";
+  if [[ $ARG_SKIP_TESTS == true ]]; then
+    echo "Warning: Unable to automatically generate test coverage reports" \
+         "when test builds are skipped";
+  fi
+fi
 
 # CMake: Configure
 if [[ $ARG_SKIP_CONFIG == false ]]; then
   cmake -DCMAKE_BUILD_TYPE="$BUILD_CONFIGURATION" \
+        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+        -D${{VAR_PROJECT_NAME_UPPER}}_IGNORE_WARNINGS="$IGNORE_WARNINGS" \
+        -D${{VAR_PROJECT_NAME_UPPER}}_SOURCE_ANALYSIS="$BUILD_ANALYZE" \
         -D${{VAR_PROJECT_NAME_UPPER}}_BUILD_TESTS="$BUILD_TESTS" \
         -D${{VAR_PROJECT_NAME_UPPER}}_BUILD_SHARED_LIBS="$BUILD_SHARED_LIBS" \
-        -D${{VAR_PROJECT_NAME_UPPER}}_USE_SANITIZERS="$BUILD_WITH_SANITIZERS" .. ;
+        -D${{VAR_PROJECT_NAME_UPPER}}_USE_SANITIZERS="$BUILD_WITH_SANITIZERS" \
+        -D${{VAR_PROJECT_NAME_UPPER}}_BUILD_TEST_COVERAGE="$BUILD_WITH_COVERAGE" ..;
 
   config_status=$?;
   if (( config_status != 0 )); then

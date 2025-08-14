@@ -55,6 +55,11 @@ generate_export_header(
     EXPORT_FILE_NAME "${${{VAR_PROJECT_NAME_UPPER}}_EXPORT_HEADER}"
 )
 
+enable_compiler_warnings(
+    ${${{VAR_PROJECT_NAME_UPPER}}_TARGET_LIB_MAIN}
+    ${${{VAR_PROJECT_NAME_UPPER}}_IGNORE_WARNINGS}
+)
+
 if(${{VAR_PROJECT_NAME_UPPER}}_USE_SANITIZERS)
     add_sanitizers(${${{VAR_PROJECT_NAME_UPPER}}_TARGET_LIB_MAIN})
 endif()
@@ -64,4 +69,7 @@ endif()
 
 if(${{VAR_PROJECT_NAME_UPPER}}_BUILD_TESTS)
     add_subdirectory(tests)
+    if(${{VAR_PROJECT_NAME_UPPER}}_BUILD_TEST_COVERAGE)
+        add_code_coverage(${${{VAR_PROJECT_NAME_UPPER}}_TARGET_LIB_MAIN})
+    endif()
 endif()
