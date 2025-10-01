@@ -627,7 +627,7 @@ def filter_docs(files, func, merge_files=True):
     """
     l = []
     for source in files:
-        docs = list(filter(lambda doc: func(doc), source["docs"]))
+        docs = list(filter(func, source["docs"]))
         if merge_files:
             l.extend(docs)
         else:
@@ -870,7 +870,7 @@ def get_project_init_version():
     version_file = project_root + "/VERSION"
     if os.path.isfile(version_file):
         version_str = ""
-        with open(version_file, "rt") as file:
+        with open(version_file, "rt", encoding="UTF-8") as file:
             version_str = file.readline()
 
         if version_str:
@@ -919,7 +919,7 @@ def save_to_file(content, filename):
         content: The text content to save, as a str.
         filename: The name of the file to save, as a str.
     """
-    with open(DOCS_DIR + "/" + filename, "wt") as file:
+    with open(DOCS_DIR + "/" + filename, "wt", encoding="UTF-8") as file:
         file.write(content)
 
 def create_markdown_content(docs):
