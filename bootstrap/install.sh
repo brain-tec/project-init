@@ -103,7 +103,7 @@ function parse_args() {
 #     entered an invalid answer or nothing at all
 #
 function confirm_action() {
-  read -p "$1" entered_yes_no;
+  read -r -p "$1" entered_yes_no;
   # Validate user input
   if [ -z "$entered_yes_no" ]; then
     entered_yes_no="no";
@@ -123,9 +123,8 @@ function confirm_action() {
   esac
   if [[ $entered_yes_no == true ]]; then
     return 0;
-  else
-    return 1;
   fi
+  return 1;
 }
 
 # Indicates whether the Project Init system is currently
@@ -277,33 +276,32 @@ function install_project_init() {
 #
 function uninstall_project_init() {
   local question="Are you sure that you want to UNINSTALL the Project Init system? (y/N): ";
-  if is_installed; then
-    # Ask for confirmation unless '--yes' option was specified
-    if [[ $ARG_ASSUME_YES == false ]]; then
-      if ! confirm_action "$question"; then
-        echo "Terminating...";
-        return 1;
-      fi
-    fi
-    # Check that file exists and can be removed
-    if ! [ -w "$FOUND_INSTALLATION" ]; then
-      echo "ERROR: Unable to remove installed file '${FOUND_INSTALLATION}'";
-      if [ -f "$FOUND_INSTALLATION" ]; then
-        echo "Do you have the necessary privileges?";
-      fi
-      return 1;
-    fi
-    # Remove installed file
-    if ! rm "$FOUND_INSTALLATION"; then
-      echo "ERROR: Failed to remove file '${FOUND_INSTALLATION}'";
-      return 1;
-    fi
-    echo "Successfully uninstalled";
-    return 0;
-  else
+  if ! is_installed; then
     echo "The Project Init system does not seem to be installed";
+    return 1;
   fi
-  return 1;
+  # Ask for confirmation unless '--yes' option was specified
+  if [[ $ARG_ASSUME_YES == false ]]; then
+    if ! confirm_action "$question"; then
+      echo "Terminating...";
+      return 1;
+    fi
+  fi
+  # Check that file exists and can be removed
+  if ! [ -w "$FOUND_INSTALLATION" ]; then
+    echo "ERROR: Unable to remove installed file '${FOUND_INSTALLATION}'";
+    if [ -f "$FOUND_INSTALLATION" ]; then
+      echo "Do you have the necessary privileges?";
+    fi
+    return 1;
+  fi
+  # Remove installed file
+  if ! rm "$FOUND_INSTALLATION"; then
+    echo "ERROR: Failed to remove file '${FOUND_INSTALLATION}'";
+    return 1;
+  fi
+  echo "Successfully uninstalled";
+  return 0;
 }
 
 function main() {
