@@ -68,6 +68,8 @@ function remove_cache_data() {
   cd "$PROJECT_INIT_CACHE_LOCATION" || return;
   # Check cache for base resources
   local cache_dir_pattern="pi_cache_${_EUID}_*";
+  # Globbing is intentional
+  # shellcheck disable=SC2206
   local cache_dirs=( $cache_dir_pattern );
   local cache_dir="";
   if [[ "${cache_dirs[0]}" != "$cache_dir_pattern" ]]; then
@@ -79,6 +81,7 @@ function remove_cache_data() {
   fi
   # Check cache for addons resources
   cache_dir_pattern="piar_cache_${_EUID}_*";
+  # shellcheck disable=SC2206
   cache_dirs=( $cache_dir_pattern );
   if [[ "${cache_dirs[0]}" != "$cache_dir_pattern" ]]; then
     for cache_dir in "${cache_dirs[@]}"; do
@@ -100,6 +103,8 @@ function remove_cache_data() {
 function bootstrap_project_init() {
   # Find suitable cache dir
   local cache_dir_pattern="pi_cache_${_EUID}_*";
+  # Globbing is intentional
+  # shellcheck disable=SC2206
   local cache_dirs=( $cache_dir_pattern );
   local base_res_dir="";
   # Check if a cache dir already exists
