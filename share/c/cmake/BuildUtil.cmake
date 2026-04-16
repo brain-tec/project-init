@@ -1,4 +1,4 @@
-# Copyright (C) 2025 Raven Computing
+# Copyright (C) 2026 Raven Computing
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@
 # The minimum CMake version required by this code is 3.22.
 #
 #==============================================================================
+
+include(CheckIPOSupported)
 
 # Enables all compiler warnings for the specified target.
 #
@@ -107,4 +109,69 @@ function(enable_source_compile_checks target_name)
         $<$<COMPILE_LANGUAGE:C>:-fanalyzer>
     )
 
+endfunction()
+
+# Sets a target to be stripped when building on Unix-like systems.
+#
+# Appends the appropriate linker options to strip the given target.
+#
+# Arguments:
+#
+#   target_name:
+#       The name of the target that should be stripped when building.
+#       This argument is mandatory.
+#
+# Example:
+#   set_stripped_executable(mytarget)
+#
+function(set_stripped_executable target_name)
+    set(platform "$<BOOL:${UNIX}>")
+    set(variant "$<OR:$<CONFIG:Release>,$<CONFIG:MinSizeRel>>")
+    set(compiler "$<OR:$<C_COMPILER_ID:GNU>,$<C_COMPILER_ID:Clang>>")
+    set(strip_opt "-Wl,--strip-all")
+    target_link_options(
+        ${target_name}
+        PRIVATE
+        "$<$<AND:${platform},${variant},${compiler}>:${strip_opt}>"
+    )
+
+endfunction()
+
+# Enables or disables link-time optimization (LTO) for the build.
+#
+# Checks whether LTO is supported by the current compiler and, if so, sets the
+# appropriate CMake variables to enable or disable LTO for Release
+# and MinSizeRel builds.
+#
+# Arguments:
+#
+#   enabled:
+#       Whether to enable or disable LTO. Should be either "ON" or "OFF".
+#
+# Example:
+#   set_link_time_optimization(ON)
+#   set_link_time_optimization(OFF)
+#
+function(set_link_time_optimization enabled)
+    set(DO_ENABLE ON)
+    if(enabled STREQUAL "OFF")
+        set(DO_ENABLE OFF)
+    endif()
+
+    check_ipo_supported(RESULT is_ipo_supported OUTPUT info)
+
+    if(is_ipo_supported)
+        set(
+            CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE
+            ${DO_ENABLE}
+            PARENT_SCOPE
+        )
+        set(
+            CMAKE_INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL
+            ${DO_ENABLE}
+            PARENT_SCOPE
+        )
+    else()
+        message(STATUS "LTO is not supported: ${info}")
+    endif()
 endfunction()
