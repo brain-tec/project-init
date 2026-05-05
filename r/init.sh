@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (C) 2025 Raven Computing
+# Copyright (C) 2026 Raven Computing
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -118,6 +118,7 @@ add_lang_version "4.2.0" "R 4.2";
 add_lang_version "4.3.0" "R 4.3";
 add_lang_version "4.4.0" "R 4.4";
 add_lang_version "4.5.0" "R 4.5";
+add_lang_version "4.6.0" "R 4.6";
 
 # Let the user choose an R project type
 select_project_type "r" "R";
