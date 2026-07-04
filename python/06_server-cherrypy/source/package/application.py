@@ -11,11 +11,10 @@ import cherrypy
 from ${{VAR_NAMESPACE_DECLARATION}}.controller import Controller
 
 
-def main(argc: int, argv: list[str]) -> int:
+def main(argv: list[str]) -> int:
     """Main function of the ${{VAR_PROJECT_NAME}} server application.
 
     Args:
-        argc (int): The argument count.
         argv (list[str]): The list of program arguments.
 
     Returns:
@@ -41,7 +40,7 @@ def main(argc: int, argv: list[str]) -> int:
     }
 
     cherrypy.log(f"Running on Python {platform.python_version()}")
-    if argc > 1:
+    if len(argv) > 1:
         cherrypy.log("Args: " + str(argv[1:]))
 
     cherrypy.quickstart(Controller(), "/", config)
@@ -49,4 +48,4 @@ def main(argc: int, argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(len(sys.argv), sys.argv))
+    sys.exit(main(sys.argv))
