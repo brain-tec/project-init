@@ -163,11 +163,11 @@ function project_init_show_main_form() {
       # Check whether to set default text
       if [ -z "$USER_INPUT_ENTERED_INDEX" ]; then
         logI "";
-        logI "You have not selected a license";
+        logI "You have not selected a license, so no such files will be generated for the project";
         var_project_license_dir="NONE";
         var_project_license="None";
       else
-        # Either set the selected license or 'None' 
+        # Either set the selected license or 'None'
         var_project_license="${_PROJECT_AVAILABLE_LICENSES_NAMES[USER_INPUT_ENTERED_INDEX]}";
         var_project_license_dir="${_PROJECT_AVAILABLE_LICENSES_PATHS[USER_INPUT_ENTERED_INDEX]}";
 
