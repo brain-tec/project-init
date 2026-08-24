@@ -86,7 +86,7 @@ function project_setup_virtual_env() {
   fi
 
   # Check if a virtual environment with the same name already exists
-  if [ -n "$(lsvirtualenv -b |grep ${_VIRTENV_NAME})" ]; then
+  if [ -n "$(lsvirtualenv -b |grep -x ${_VIRTENV_NAME})" ]; then
     # Environment is already set up, so we simply switch to it
     if ! workon "${_VIRTENV_NAME}"; then
       logE "Failed to switch to virtual environment '${_VIRTENV_NAME}'";
