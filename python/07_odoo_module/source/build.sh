@@ -110,9 +110,8 @@ if [[ $ARG_SKIP_TESTS == false ]]; then
   if [[ $ARG_NO_VIRTUALENV == true ]]; then
     test_args="--no-virtualenv";
   fi
-  bash test.sh $test_args;
-  if (( $? != 0 )); then
-    exit $?;
+  if ! bash test.sh $test_args; then
+    exit 1;
   fi
 fi
 

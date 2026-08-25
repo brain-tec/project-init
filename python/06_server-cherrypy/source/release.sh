@@ -62,9 +62,8 @@ if ! command -v "twine" &> /dev/null; then
 fi
 
 # Build and test
-bash build.sh;
-if (( $? != 0 )); then
-  exit $?;
+if ! bash build.sh; then
+  exit 1;
 fi
 
 logI "Running distribution checks";
