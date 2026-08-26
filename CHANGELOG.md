@@ -1,3 +1,8 @@
+#### 1.9.12
+* Minor internal improvements.
+* Updates to default dependencies in project source templates.
+* See [full changelog](https://github.com/raven-computing/project-init/compare/v1.9.11...v1.9.12)
+
 #### 1.9.11
 * Deprecated Odoo module project source template.
 * Minor internal improvements.
