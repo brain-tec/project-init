@@ -75,6 +75,24 @@ function(enable_compiler_warnings target_name inform_only)
     endif()
 endfunction()
 
+# Disables all compiler warnings for the specified target.
+#
+# Arguments:
+#
+#   target_name:
+#       The name of the target to disable all compiler warnings for.
+#
+# Example:
+#   disable_compiler_warnings(mytarget)
+#
+function(disable_compiler_warnings target_name)
+    if(MSVC)
+        target_compile_options(${target_name} PRIVATE /W0)
+    else()
+        target_compile_options(${target_name} PRIVATE -w)
+    endif()
+endfunction()
+
 # Enables compile-time source code checks for a given CMake target.
 #
 # Appends the appropriate compiler flags, if available, to let the compiler
@@ -109,6 +127,64 @@ function(enable_source_compile_checks target_name)
         $<$<COMPILE_LANGUAGE:C>:-fanalyzer>
     )
 
+endfunction()
+
+# Sets the output directories for all build artifacts.
+#
+# Sets the global CMAKE_*_OUTPUT_DIRECTORY variables to default locations
+# within the build directory, unless they have already been defined.
+# Also applies the same for multi-configuration generators by setting the
+# CMAKE_*_OUTPUT_DIRECTORY_<CONFIG> variables. The variables are set in the
+# scope of the caller.
+#
+function(set_output_directories)
+    # Multi-configuration generators
+    foreach(OUTPUT_CONFIG ${CMAKE_CONFIGURATION_TYPES})
+        string(TOUPPER ${OUTPUT_CONFIG} OUTPUT_CONFIG_UPPER)
+        if(NOT DEFINED CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${OUTPUT_CONFIG_UPPER})
+            set(
+                CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${OUTPUT_CONFIG_UPPER}
+                "${CMAKE_BINARY_DIR}/lib/${OUTPUT_CONFIG}"
+                PARENT_SCOPE
+            )
+        endif()
+        if(NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY_${OUTPUT_CONFIG_UPPER})
+            set(
+                CMAKE_LIBRARY_OUTPUT_DIRECTORY_${OUTPUT_CONFIG_UPPER}
+                "${CMAKE_BINARY_DIR}/lib/${OUTPUT_CONFIG}"
+                PARENT_SCOPE
+            )
+        endif()
+        if(NOT DEFINED CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUT_CONFIG_UPPER})
+            set(
+                CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUT_CONFIG_UPPER}
+                "${CMAKE_BINARY_DIR}/bin/${OUTPUT_CONFIG}"
+                PARENT_SCOPE
+            )
+        endif()
+    endforeach()
+    # Global settings
+    if(NOT DEFINED CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
+        set(
+            CMAKE_ARCHIVE_OUTPUT_DIRECTORY
+            "${CMAKE_BINARY_DIR}/lib"
+            PARENT_SCOPE
+        )
+    endif()
+    if(NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
+        set(
+            CMAKE_LIBRARY_OUTPUT_DIRECTORY
+            "${CMAKE_BINARY_DIR}/lib"
+            PARENT_SCOPE
+        )
+    endif()
+    if(NOT DEFINED CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+        set(
+            CMAKE_RUNTIME_OUTPUT_DIRECTORY
+            "${CMAKE_BINARY_DIR}/bin"
+            PARENT_SCOPE
+        )
+    endif()
 endfunction()
 
 # Sets a target to be stripped when building on Unix-like systems.
@@ -174,4 +250,42 @@ function(set_link_time_optimization enabled)
     else()
         message(STATUS "LTO is not supported: ${info}")
     endif()
+endfunction()
+
+# Enables build optimizations that are natively available for the system
+# the build is executed on.
+#
+# This might produce more performant code but the built target might not run
+# on machines other than the one it was built on. Do not use this optimization
+# if you intend to create redistributables.
+#
+# This feature is currently only available when compiling with GCC or Clang.
+#
+# Arguments:
+#
+#   target_name:
+#       The name of the target to optimize. This argument is mandatory.
+#
+# Example:
+#   enable_native_optimizations(mytarget)
+#
+function(enable_native_optimizations target_name)
+    if(MSVC)
+        message(
+            WARNING
+            "Native optimizations are not available for MSVC. "
+            "Using default optimizations"
+        )
+        return()
+    endif()
+    message(STATUS "Target ${target_name} will be optimized for this machine")
+    set(FLAGS_GCC_AND_CLANG "-march=native")
+    target_compile_options(
+        ${target_name}
+        PRIVATE
+        $<$<C_COMPILER_ID:GNU>:${FLAGS_GCC_AND_CLANG}>
+        $<$<C_COMPILER_ID:Clang>:${FLAGS_GCC_AND_CLANG}>
+        $<$<CXX_COMPILER_ID:GNU>:${FLAGS_GCC_AND_CLANG}>
+        $<$<CXX_COMPILER_ID:Clang>:${FLAGS_GCC_AND_CLANG}>
+    )
 endfunction()
