@@ -42,9 +42,15 @@ include(cmake/TestUtil.cmake)
 include(cmake/TestCoverageUtil.cmake)
 include(cmake/SanitizerUtil.cmake)
 
+find_package(Threads REQUIRED)
+
 if(${{VAR_PROJECT_NAME_UPPER}}_USE_THREAD_SANITIZER)
     set(${{VAR_PROJECT_NAME_UPPER}}_USE_SANITIZERS ON)
     set(${{VAR_PROJECT_NAME_UPPER}}_USE_THREAD_SANITIZER "USE_THREAD_SANITIZER")
+endif()
+
+if(NOT DEFINED ${{VAR_PROJECT_NAME_UPPER}}_DO_NOT_OVERWRITE_OUTPUT_DIRECTORY)
+    set_output_directories()
 endif()
 
 include(Dependencies.cmake)
