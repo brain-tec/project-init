@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (C) 2025 Raven Computing
+# Copyright (C) 2026 Raven Computing
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -3379,7 +3379,7 @@ function _read_license_extension_map() {
     logE "Programming error: No file specified in call to _read_license_extension_map()";
     return 2;
   fi
-  if [ -r "$ext_path" ]; then
+  if [ -r "$ext_file" ]; then
     local ext_key="";
     local ext_val="";
     local line="";
@@ -3407,7 +3407,7 @@ function _read_license_extension_map() {
   fi
   if [[ $invalid_format == true ]]; then
     logW "The license header extension map file is incorrectly formatted:";
-    logW "at: '$ext_path'";
+    logW "at: '${ext_file}'";
     return 1;
   fi
   return 0;
@@ -4671,8 +4671,20 @@ function replace_var() {
     fi
     # Check if a specific file extension was specified
     if [ -n "${_var_file_ext}" ]; then
-      # Skip all file which do not have the specified extension
-      if [[ "$f" != *${_var_file_ext} ]]; then
+      # Match either exact file name or exact trailing file extension
+      local fbase="";
+      local fext="";
+      local is_match=false;
+      fbase="$(basename "$f")";
+      if [[ "${fbase}" == "${_var_file_ext}" ]]; then
+        is_match=true;
+      elif [[ "${fbase}" == *.* ]]; then
+        fext="${fbase##*.}";
+        if [[ "${fext}" == "${_var_file_ext}" ]]; then
+          is_match=true;
+        fi
+      fi
+      if [[ $is_match == false ]]; then
         continue;
       fi
     fi
