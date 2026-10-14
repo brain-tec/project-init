@@ -2164,7 +2164,7 @@ function _read_properties() {
         # Check that the line is a key-value pair
         if [[ "$line" == *"="* ]]; then
           p_key=$(echo "$line" |cut -d= -f1);
-          p_val=$(echo "$line" |cut -d= -f2);
+          p_val=$(echo "$line" |cut -d= -f2-);
           if (( $? != 0 )); then
             logW "Failed to process properties file:";
             logW "at: '$properties_file'";
@@ -3124,7 +3124,7 @@ function project_init_copy() {
     logI "You are about to initialize a new software project.";
     logI "Do you want to continue? (Y/n)";
     read_user_input_yes_no true;
-    answer=$USER_INPUT_ENTERED_BOOL;
+    local answer=$USER_INPUT_ENTERED_BOOL;
     if [[ $answer == false ]]; then
       logI "Cancelling...";
       exit $EXIT_CANCELLED;
